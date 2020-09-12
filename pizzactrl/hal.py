@@ -1,5 +1,7 @@
 from time import sleep
 
+from typing import Any
+
 from . import gpio_pins
 
 from picamera import PiCamera
@@ -12,7 +14,14 @@ class Motor:
         self._in2 = OutputDevice(in2)
         self._en = PWMOutputDevice(enable)
 
-    def _set_direction(self, cw: bool = True):
+    @property
+    def direction(self):
+        return self._in1.value > self._in2.value
+
+    @direction.setter
+    def direction(self, cw=True):
+        if cw is None:
+            self._in1.value = self._in2.value = 0
         if cw:
             self._in1.value = 1
             self._in2.value = 0
@@ -20,43 +29,48 @@ class Motor:
             self._in1.value = 0
             self._in2.value = 1
 
-    def on(self, speed: float = 0):
+    @property
+    def speed(self):
+        return self._en.value * 1.0 if self.direction else -1.0
+
+    @speed.setter
+    def speed(self, speed: float):
         """
         Turn on motor. Negative speed = CCW direction
 
         :param speed: float [-1.0 .. 1.0]
         """
-        self._set_direction(speed > 0)
-        self._en.value = speed
+        if self.speed == speed:
+            return
+
+        if speed == 0:
+            self.off()
+            return
+
+        if abs(speed) > 1.:
+            speed = 1. if speed > 0 else -1.
+
+        self.direction = (speed > 0)
+        self._en.value = abs(speed)
 
     def off(self):
         """
         Stop motor
         """
-        self._en.off()
-
-    def ramp(self, increment: float):
-        """
-        Accelerate or decelerate by `increment` (in fractions of 1)
-
-        :param increment: float fraction of 1
-        """
-        if self._en.value == 0:
-            self._set_direction(increment > 0)
-        self._en.value += increment
+        if self._en.is_active:
+            self._en.off()
+            self._set_direction(None)
 
 
 class ScrollSensor:
     def __init__(self, low_bit, high_bit):
         self._low = Button(low_bit)
         self._high = Button(high_bit)
-        self._low.when_pressed = self._low_callback
+        self._low.when_pressed = self._high_callback
         self._low.when_released = self._low_callback
-        self._high.when_pressed = self._high_callback
-        self._high.when_released = self._high_callback
 
-        self.direction = 0
-        self.count = 0
+        self._direction = 0
+        self._count = 0
 
     def _high_callback(self):
         # TODO implement
@@ -66,11 +80,25 @@ class ScrollSensor:
         # TODO implement
         pass
 
-    def reset(self):
+    @property
+    def count(self):
+        return self._count
+
+    @count.setter
+    def count(self, count):
+        self._count = count
+
+    @property
+    def direction(self):
+        return self._direction
+
+    def wait_for_tick(self):
         """
-        Reset counter to 0
+        do nothing until flank on sensor inputs
         """
-        self.count = 0
+        _count = self.count
+        while self.count == _count:
+            pass
 
 
 class PizzaHAL:
@@ -97,25 +125,39 @@ class PizzaHAL:
 
         self.ud_endstop = Button(gpio_pins.SCROLL_UPDOWN_ENDSTOP)
         self.lr_endstop = Button(gpio_pins.SCROLL_LR_ENDSTOP)
-        self.ud_sensor = ScrollSensor(gpio_pins.SCROLL_UPDOWN_SENSORS)
-        self.lr_sensor = ScrollSensor(gpio_pins.SCROLL_LR_SENSORS)
+        self.ud_sensor = ScrollSensor(*gpio_pins.SCROLL_UPDOWN_SENSORS)
+        self.lr_sensor = ScrollSensor(*gpio_pins.SCROLL_LR_SENSORS)
 
-        self.scroll_ud = 0      # Position of the up-down scroll
-        self.scroll_lr = 0      # Position of the left-right scroll
-
-        self.camera = PiCamera()
-        self.motor_lr = Motor(gpio_pins.MOTOR_CTRL_LR)
-        self.motor_ud = Motor(gpio_pins.MOTOR_CTRL_UPDOWN)
+        # self.camera = PiCamera()  # TODO enable
+        self.motor_lr = Motor(*gpio_pins.MOTOR_CTRL_LR)
+        self.motor_ud = Motor(*gpio_pins.MOTOR_CTRL_UPDOWN)
         self.led_layer = PWMOutputDevice(gpio_pins.LED_LAYER)
         self.led_backlight = PWMOutputDevice(gpio_pins.LED_BACKLIGHT)
 
 
 def _move(motor: Motor, sensor: ScrollSensor, speed: float = 1.0,
           distance: int = 0, ramp = True):
-    sensor.reset()
+    motor.off()
+    sensor.count = 0
+    # acceleration parameters
+    acc_dist = 0
+    increment = 0
+    # only accelerate on longer distances
+    if ramp and distance > 10:
+        # calculate speed increment per tick
+        acc_dist = int(distance * 0.1)
+        increment = speed / acc_dist
+
     while sensor.count < distance:
-        # TODO continue
-        pass
+        if sensor.count < acc_dist:     # accelerate
+            motor.speed += increment
+        elif sensor.count > (distance - acc_dist):  # decelerate
+            motor.speed -= increment
+        else:                           # set speed and wait
+            motor.speed = speed
+        sensor.wait_for_tick()
+
+    motor.off()
 
 
 def move_updown(hal: PizzaHAL, speed: float, distance: int):
@@ -129,7 +171,7 @@ def move_updown(hal: PizzaHAL, speed: float, distance: int):
     :param distance: positive int
                     distance to travel in tics
     """
-    _move(hal.motor_ud, hal.scroll_ud, speed, distance)
+    _move(hal.motor_ud, hal.ud_sensor, speed, distance)
 
 
 def move_leftright(hal: PizzaHAL, speed: float, distance: int):
@@ -143,7 +185,7 @@ def move_leftright(hal: PizzaHAL, speed: float, distance: int):
     :param distance: positive int
                     distance to travel in tics
     """
-    _move(hal.motor_lr, hal.scroll_lr, speed, distance)
+    _move(hal.motor_lr, hal.ud_sensor, speed, distance)
 
 
 def rewind(hal: PizzaHAL):
@@ -220,7 +262,7 @@ def backlight(hal: PizzaHAL, intensity: float, fade: float = 0.0,
         hal.led_backlight.value = intensity
 
 
-def play_sound(hal: PizzaHAL, sound: type[any], block: bool):
+def play_sound(hal: PizzaHAL, sound: Any, block: bool):
     """
     Play a sound.
 
