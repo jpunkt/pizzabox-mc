@@ -6,8 +6,14 @@ from .statemachine import Statemachine
 def main():
     sm = Statemachine()
 
-    # TODO error handling, recovery/reboot
-    sm.run()
+    try:
+        sm.run()
+    except Exception:
+        # TODO error handling, recovery/reboot
+        pass
+    finally:
+        del sm
+        # TODO shut down raspberry
 
 
 if __name__=='__main__':

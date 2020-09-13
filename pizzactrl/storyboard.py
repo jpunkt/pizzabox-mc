@@ -1,5 +1,7 @@
 from enum import Enum, auto
 
+from pizzactrl import fs_names
+
 
 class Activity(Enum):
     WAIT_FOR_INPUT = {'steps': 0},
@@ -33,14 +35,13 @@ class StoryboardIterator:
     def __iter__(self):
         return self
 
-    def __next__(self):
+    def __next__(self) -> Do:
         if self.pos >= len(Storyboard):
             raise StopIteration
         return Storyboard[self.pos]
 
     def forward(self):
-        if self.pos < len(Storyboard):
-            self.pos += 1
+        self.pos += 1
 
     def back(self, steps):
         if self.pos > 0:
@@ -48,7 +49,7 @@ class StoryboardIterator:
 
 
 Storyboard = [
-    Do(Activity.PLAY_SOUND, sound='sound/welcome.wav'),
+    Do(Activity.PLAY_SOUND, sound=fs_names.SND_INTRO),
     Do(Activity.WAIT_FOR_INPUT),
     Do(Activity.PLAY_SOUND, sound='sound/intro.wav'),
     Do(Activity.WAIT_FOR_INPUT),

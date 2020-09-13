@@ -1,5 +1,6 @@
 from enum import Enum, auto
 
+from pizzactrl import fs_names
 from .storyboard import Activity, StoryboardIterator
 
 from .hal import *
@@ -27,12 +28,15 @@ class Statemachine:
                 State.POST: self._post,
                 State.IDLE_START: self._idle_start,
                 State.PLAY: self._play,
-                State.IDLE_END: self._idle_end,
-                State.SHUTDOWN: self._shutdown
+                State.IDLE_END: self._idle_end
              }
-        while self.state is not State.ERROR:
+        while (self.state is not State.ERROR) and \
+                (self.state is not State.SHUTDOWN):
             choice[self.state]()
-        # TODO log errors if possible
+        if self.state is State.ERROR:
+            # TODO log errors if possible
+            pass
+
         self._shutdown()
 
     def _lid_open(self):
@@ -56,18 +60,28 @@ class Statemachine:
 
     def _power_on(self):
         """
-        Initialize hal callbacks
+        Initialize hal callbacks, load sounds
         """
         self.hal.lid_sensor.when_pressed = self._lid_open
         self.hal.lid_sensor.when_released = self._lid_closed
+        init_sounds(self.hal)
         self.state = State.POST
 
     def _post(self):
         """
         Power on self test. Do not arm the device if the lid is open
         """
-        if not self.hal.lid_sensor.value:
-            self.state = State.IDLE_START
+        # check scroll positions and rewind if necessary
+        rewind(self.hal)
+
+        # TODO check if USB-Stick is present
+
+        # play a sound if everything is alright
+        play_sound(self.hal, fs_names.SFX_POST_OK)
+
+        while self.hal.lid_sensor.is_pressed:
+            play_sound(self.hal, fs_names.SFX_POST_OK)
+            sleep(10)
 
     def _idle_start(self):
         """
@@ -75,23 +89,19 @@ class Statemachine:
         """
         pass
 
-    def _wait_for_input(self):
-        """
-        Wait for user to press a button
-        """
-        pass
-
     def _play(self):
         """
         Run the storyboard
         """
+        # TODO select language
+
         story = StoryboardIterator()
         for step in iter(story):
             if step.activity is Activity.WAIT_FOR_INPUT:
                 wait_for_input(self.hal,
                                story.foward,
                                story.back,
-                               step.values)
+                               **step.values)
             else:
                 {
                     Activity.PLAY_SOUND: play_sound,
@@ -103,17 +113,23 @@ class Statemachine:
                     Activity.MOVE_LEFTRIGHT: move_leftright,
                     Activity.LIGHT_LAYER: light_layer,
                     Activity.LIGHT_BACK: backlight
-                }[step.activity](self.hal, step.values)
+                }[step.activity](self.hal, **step.values)
                 story.forward()
         rewind(self.hal)
+        self.state = State.IDLE_END
 
     def _idle_end(self):
         """
-        Wait for administrative shutdown or replay
+        Wait for user to close lid, then shut down
         """
-        pass
+        while self.hal.lid_sensor.is_pressed:
+            sleep(30)
+            play_sound(self.hal, fs_names.SFX_CLOSE_LID_REMINDER)
+        self.state = State.SHUTDOWN
 
     def _shutdown(self):
         """
-        Clean up, send system shutdown
+        Clean up, end execution
         """
+        del self.hal
+

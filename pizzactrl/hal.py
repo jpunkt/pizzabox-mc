@@ -1,3 +1,4 @@
+import logging
 from time import sleep
 
 from typing import Any
@@ -6,6 +7,9 @@ from . import gpio_pins
 
 from picamera import PiCamera
 from gpiozero import Button, OutputDevice, PWMOutputDevice, PWMLED
+
+
+logger = logging.getLogger(__name__)
 
 
 class Motor:
@@ -31,7 +35,7 @@ class Motor:
 
     @property
     def speed(self):
-        return self._en.value * 1.0 if self.direction else -1.0
+        return self._en.value * self.direction
 
     @speed.setter
     def speed(self, speed: float):
@@ -59,38 +63,28 @@ class Motor:
         """
         if self._en.is_active:
             self._en.off()
-            self._set_direction(None)
+            self.direction = None
 
 
 class ScrollSensor:
-    def __init__(self, low_bit, high_bit):
-        self._low = Button(low_bit)
-        self._high = Button(high_bit)
-        self._low.when_pressed = self._high_callback
-        self._low.when_released = self._low_callback
+    def __init__(self, low_bit: int, high_bit: int, endstop: int):
+        self._low = Button(low_bit, pull_up=False)
+        self._high = Button(high_bit, pull_up=False)
+        self._end = Button(endstop)
+        self._low.when_pressed = self._callback
+        # self._low.when_released = self._callback
 
-        self._direction = 0
-        self._count = 0
+        self.direction = 0
+        self.count = 0
 
-    def _high_callback(self):
-        # TODO implement
-        pass
-
-    def _low_callback(self):
-        # TODO implement
-        pass
-
-    @property
-    def count(self):
-        return self._count
-
-    @count.setter
-    def count(self, count):
-        self._count = count
-
-    @property
-    def direction(self):
-        return self._direction
+    def _callback(self):
+        logger.debug(f'callback(), low_bit={self._low.value}, '
+                     f'high_bit={self._high.value}, count={self.count}')
+        if self._high.is_pressed is self._low.is_pressed:
+            self.direction = -1
+        else:
+            self.direction = 1
+        self.count += self.direction
 
     def wait_for_tick(self):
         """
@@ -99,6 +93,14 @@ class ScrollSensor:
         _count = self.count
         while self.count == _count:
             pass
+
+    @property
+    def eot_callback(self):
+        return self._end.when_pressed
+
+    @eot_callback.setter
+    def eot_callback(self, callback):
+        self._end._when_pressed = callback
 
 
 class PizzaHAL:
@@ -123,41 +125,60 @@ class PizzaHAL:
 
         self.lid_sensor = Button(gpio_pins.LID_SWITCH)
 
-        self.ud_endstop = Button(gpio_pins.SCROLL_UPDOWN_ENDSTOP)
-        self.lr_endstop = Button(gpio_pins.SCROLL_LR_ENDSTOP)
-        self.ud_sensor = ScrollSensor(*gpio_pins.SCROLL_UPDOWN_SENSORS)
-        self.lr_sensor = ScrollSensor(*gpio_pins.SCROLL_LR_SENSORS)
+        self.ud_sensor = ScrollSensor(*gpio_pins.SCROLL_UPDOWN_SENSORS,
+                                      gpio_pins.SCROLL_UPDOWN_ENDSTOP)
+        self.lr_sensor = ScrollSensor(*gpio_pins.SCROLL_LR_SENSORS,
+                                      gpio_pins.SCROLL_LR_ENDSTOP)
 
-        # self.camera = PiCamera()  # TODO enable
         self.motor_lr = Motor(*gpio_pins.MOTOR_CTRL_LR)
         self.motor_ud = Motor(*gpio_pins.MOTOR_CTRL_UPDOWN)
         self.led_layer = PWMOutputDevice(gpio_pins.LED_LAYER)
         self.led_backlight = PWMOutputDevice(gpio_pins.LED_BACKLIGHT)
 
+        # self.camera = PiCamera()  # TODO enable
+        self.soundcache = {}
+
 
 def _move(motor: Motor, sensor: ScrollSensor, speed: float = 1.0,
-          distance: int = 0, ramp = True):
-    motor.off()
-    sensor.count = 0
-    # acceleration parameters
-    acc_dist = 0
-    increment = 0
-    # only accelerate on longer distances
-    if ramp and distance > 10:
-        # calculate speed increment per tick
-        acc_dist = int(distance * 0.1)
-        increment = speed / acc_dist
+          distance: int = 0, ramp=True):
+    """
+    Expecting speed to be always positive, but distance to show direction
 
-    while sensor.count < distance:
-        if sensor.count < acc_dist:     # accelerate
-            motor.speed += increment
-        elif sensor.count > (distance - acc_dist):  # decelerate
-            motor.speed -= increment
-        else:                           # set speed and wait
-            motor.speed = speed
-        sensor.wait_for_tick()
+    :param motor:
+    :param sensor:
+    :param speed:
+    :param distance:
+    :param ramp:
+    :return:
+    """
+    try:
+        motor.off()
+        sensor.count = 0
+        # acceleration parameters
+        acc_dist = 0
+        increment = 0
+        speed = abs(speed)
+        # set direction
+        if distance < 0:
+            speed = -abs(speed)
 
-    motor.off()
+        # only accelerate on longer distances
+        if ramp and distance > 20:
+            # calculate speed increment per tick
+            acc_dist = int(distance * 0.1)
+            increment = speed / acc_dist
+
+        logger.debug(f'distance={distance}')
+        while abs(sensor.count) < abs(distance):
+            if abs(sensor.count) < abs(acc_dist):     # accelerate
+                motor.speed += increment
+            elif abs(sensor.count) > abs(distance - acc_dist):  # decelerate
+                motor.speed -= increment
+            else:                           # set speed and wait
+                motor.speed = speed
+            sensor.wait_for_tick()
+    finally:
+        motor.off()
 
 
 def move_updown(hal: PizzaHAL, speed: float, distance: int):
@@ -280,7 +301,8 @@ def play_sound_insert(hal: PizzaHAL, *args):
     :param hal: The hardware abstraction object
     :param args: a list of sound files
     """
-    pass
+    for sound in args:
+        play_sound(hal, sound, True)
 
 
 def record_sound(hal: PizzaHAL, filename: str, duration: int):
@@ -311,5 +333,14 @@ def take_photo(hal: PizzaHAL, filename: str):
 
     :param hal: The hardware abstraction object
     :param filename: The path of the filename for the foto
+    """
+    pass
+
+
+def init_sounds(hal: PizzaHAL):
+    """
+    Load prerecorded Sounds into memory
+
+    :param hal:
     """
     pass
