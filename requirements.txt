@@ -1,3 +1,6 @@
 gpiozero
 picamera
 click
+sounddevice
+soundfile
+scipy

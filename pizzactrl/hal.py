@@ -1,7 +1,11 @@
 import logging
 from time import sleep
 
-from typing import Any
+from typing import Any, List
+from scipy.io.wavfile import write as writewav
+
+import sounddevice as sd
+import soundfile as sf
 
 from . import gpio_pins
 
@@ -10,6 +14,12 @@ from gpiozero import Button, OutputDevice, PWMOutputDevice, PWMLED
 
 
 logger = logging.getLogger(__name__)
+
+
+# Constants
+VIDEO_RES = (1920, 1080)  # Video Resolution
+PHOTO_RES = (2952, 1944)  # Photo Resolution
+AUDIO_REC_SR = 44100      # Audio Recording Samplerate
 
 
 class Motor:
@@ -35,7 +45,7 @@ class Motor:
 
     @property
     def speed(self):
-        return self._en.value * self.direction
+        return self._en.value * (1.0 if self.direction else -1.0)
 
     @speed.setter
     def speed(self, speed: float):
@@ -71,8 +81,8 @@ class ScrollSensor:
         self._low = Button(low_bit, pull_up=False)
         self._high = Button(high_bit, pull_up=False)
         self._end = Button(endstop)
-        self._low.when_pressed = self._callback
-        # self._low.when_released = self._callback
+        # self._low.when_pressed = self._callback
+        self._low.when_released = self._callback
 
         self.direction = 0
         self.count = 0
@@ -135,7 +145,7 @@ class PizzaHAL:
         self.led_layer = PWMOutputDevice(gpio_pins.LED_LAYER)
         self.led_backlight = PWMOutputDevice(gpio_pins.LED_BACKLIGHT)
 
-        # self.camera = PiCamera()  # TODO enable
+        self.camera = None
         self.soundcache = {}
 
 
@@ -283,15 +293,17 @@ def backlight(hal: PizzaHAL, intensity: float, fade: float = 0.0,
         hal.led_backlight.value = intensity
 
 
-def play_sound(hal: PizzaHAL, sound: Any, block: bool):
+def play_sound(hal: PizzaHAL, sound: Any):
     """
     Play a sound.
 
     :param hal: The hardware abstraction object
     :param sound: The sound to be played
-    :param block: When `True` do not allow other actions while playing
     """
-    pass
+    # Extract data and sampling rate from file
+    data, fs = hal.soundcache.get(sound, sf.read(sound, dtype='float32'))
+    sd.play(data, fs)
+    sd.wait()  # Wait until file is done playing
 
 
 def play_sound_insert(hal: PizzaHAL, *args):
@@ -302,10 +314,10 @@ def play_sound_insert(hal: PizzaHAL, *args):
     :param args: a list of sound files
     """
     for sound in args:
-        play_sound(hal, sound, True)
+        play_sound(hal, sound)
 
 
-def record_sound(hal: PizzaHAL, filename: str, duration: int):
+def record_sound(hal: PizzaHAL, filename: str, duration: int, cache: bool = False):
     """
     Record sound using the microphone
 
@@ -313,10 +325,16 @@ def record_sound(hal: PizzaHAL, filename: str, duration: int):
     :param filename: The path of the file to record to
     :param duration: The time to record in seconds
     """
-    pass
+    myrecording = sd.rec(int(duration * AUDIO_REC_SR),
+                         samplerate=AUDIO_REC_SR,
+                         channels=2)
+    sd.wait()  # Wait until recording is finished
+    writewav(filename, AUDIO_REC_SR, myrecording)
+    if cache:
+        hal.soundcache[filename] = (myrecording, AUDIO_REC_SR)
 
 
-def record_video(hal: PizzaHAL, filename: str, duration: int):
+def record_video(hal: PizzaHAL, filename: str, duration: float):
     """
     Record video using the camera
 
@@ -324,7 +342,10 @@ def record_video(hal: PizzaHAL, filename: str, duration: int):
     :param filename: The path of the file to record to
     :param duration: The time to record in seconds
     """
-    pass
+    hal.camera.resolution = (640, 480)
+    hal.camera.start_recording(filename)
+    hal.camera.wait_recording(duration)
+    hal.camera.stop_recording()
 
 
 def take_photo(hal: PizzaHAL, filename: str):
@@ -334,13 +355,24 @@ def take_photo(hal: PizzaHAL, filename: str):
     :param hal: The hardware abstraction object
     :param filename: The path of the filename for the foto
     """
-    pass
+    hal.camera.capture(filename)
 
 
-def init_sounds(hal: PizzaHAL):
+def init_sounds(hal: PizzaHAL, sounds: List):
     """
     Load prerecorded Sounds into memory
 
     :param hal:
     """
-    pass
+    if hal.soundcache is None:
+        hal.soundcache = {}
+
+    for sound in sounds:
+        # Extract data and sampling rate from file
+        data, fs = sf.read(sound, dtype='float32')
+        hal.soundcache[sound] = (data, fs)
+
+
+def init_camera(hal: PizzaHAL):
+    if hal.camera is None:
+        hal.camera = PiCamera()

@@ -24,6 +24,11 @@ class Do:
             self.values[key] = kwargs.get(key, value)
 
 
+class Chapter:
+    # TODO implement chapter
+    pass
+
+
 class StoryboardIterator:
     """
     Iterates over the storyboard. Only moves forward if `forward()` was called.

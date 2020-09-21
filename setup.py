@@ -1,8 +1,15 @@
 import re
 import ast
+import scipy
+import wave
 
+import click
 import gpiozero
 import picamera
+import pyaudio as pyaudio
+import pydub
+import sounddevice as sounddevice
+import soundfile as soundfile
 
 from setuptools import setup
 
@@ -28,7 +35,10 @@ with open('pizzactrl/__init__.py', 'rb') as f:
         install_requires=[
             gpiozero,
             picamera,
-            click
+            click,
+            sounddevice,
+            soundfile,
+            scipy
         ],
 
         entry_points='''

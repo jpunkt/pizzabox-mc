@@ -17,6 +17,16 @@ class State(Enum):
     ERROR = -1
 
 
+def load_sounds():
+    """
+    Load all prerecorded Sounds from the cache
+
+    TODO implement
+    :returns a list of sound file names
+    """
+    return []
+
+
 class Statemachine:
     def __init__(self):
         self.state = State.POWER_ON
@@ -64,7 +74,8 @@ class Statemachine:
         """
         self.hal.lid_sensor.when_pressed = self._lid_open
         self.hal.lid_sensor.when_released = self._lid_closed
-        init_sounds(self.hal)
+        init_sounds(self.hal, load_sounds())
+        init_camera(self.hal)
         self.state = State.POST
 
     def _post(self):
@@ -94,7 +105,7 @@ class Statemachine:
         Run the storyboard
         """
         # TODO select language
-
+        # TODO implement chapters
         story = StoryboardIterator()
         for step in iter(story):
             if step.activity is Activity.WAIT_FOR_INPUT:
@@ -132,4 +143,3 @@ class Statemachine:
         Clean up, end execution
         """
         del self.hal
-
