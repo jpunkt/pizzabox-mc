@@ -6,6 +6,7 @@ from scipy.io.wavfile import write as writewav
 
 import sounddevice as sd
 import soundfile as sf
+import numpy as np
 
 from . import gpio_pins
 
@@ -18,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 # Constants
 VIDEO_RES = (1920, 1080)  # Video Resolution
-PHOTO_RES = (2952, 1944)  # Photo Resolution
+PHOTO_RES = (2592, 1944)  # Photo Resolution
 AUDIO_REC_SR = 44100      # Audio Recording Samplerate
 
 
@@ -133,7 +134,7 @@ class PizzaHAL:
         self.led_btn_fwd = PWMLED(gpio_pins.LED_FWD_BTN)
         self.led_btn_back = PWMLED(gpio_pins.LED_BACK_BTN)
 
-        self.lid_sensor = Button(gpio_pins.LID_SWITCH)
+        # self.lid_sensor = Button(gpio_pins.LID_SWITCH)
 
         self.ud_sensor = ScrollSensor(*gpio_pins.SCROLL_UPDOWN_SENSORS,
                                       gpio_pins.SCROLL_UPDOWN_ENDSTOP)
@@ -241,22 +242,21 @@ def wait_for_input(hal: PizzaHAL, go_callback, back_callback, **kwargs):
     pass
 
 
-def _fade_led(led_pin: PWMOutputDevice, intensity: float, fade = 1.0,
-              steps: int = 10):
+def _fade_led(led_pin: PWMOutputDevice, intensity: float, fade: float = 1.0,
+              steps: int = 100):
     brightness = led_pin.value
     step = (intensity - brightness) / float(steps)
     wait = fade / float(steps)
 
-    while brightness < intensity:
-        brightness += step
-        led_pin.value = brightness
+    for i in np.arange(brightness, intensity, step):
+        led_pin.value = i
         sleep(wait)
 
     led_pin.value = intensity
 
 
 def light_layer(hal: PizzaHAL, intensity: float, fade: float = 0.0,
-                steps: int = 10):
+                steps: int = 100):
     """
     Turn on the light to illuminate the upper scroll
 
@@ -275,7 +275,7 @@ def light_layer(hal: PizzaHAL, intensity: float, fade: float = 0.0,
 
 
 def backlight(hal: PizzaHAL, intensity: float, fade: float = 0.0,
-                steps: int = 10):
+              steps: int = 100):
     """
     Turn on the backlight
 
@@ -342,7 +342,7 @@ def record_video(hal: PizzaHAL, filename: str, duration: float):
     :param filename: The path of the file to record to
     :param duration: The time to record in seconds
     """
-    hal.camera.resolution = (640, 480)
+    hal.camera.resolution = VIDEO_RES
     hal.camera.start_recording(filename)
     hal.camera.wait_recording(duration)
     hal.camera.stop_recording()
@@ -355,6 +355,7 @@ def take_photo(hal: PizzaHAL, filename: str):
     :param hal: The hardware abstraction object
     :param filename: The path of the filename for the foto
     """
+    hal.camera.resolution = PHOTO_RES
     hal.camera.capture(filename)
 
 
