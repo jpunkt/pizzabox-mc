@@ -62,9 +62,9 @@ class Statemachine:
         choice = {
                 State.POWER_ON: self._power_on,
                 State.POST: self._post,
-                State.IDLE_START: self._idle_start,  # TODO implement with callbacks
+                State.IDLE_START: self._idle_start,
                 State.PLAY: self._play,
-                State.IDLE_END: self._idle_end   # TODO implement with callbacks
+                State.IDLE_END: self._idle_end
              }
         while (self.state is not State.ERROR) and \
                 (self.state is not State.SHUTDOWN):
@@ -107,8 +107,7 @@ class Statemachine:
         # play a sound if everything is alright
         play_sound(self.hal, fs_names.SFX_POST_OK)
 
-        # TODO set callback for blue button
-
+        # Callback for start when blue button is held
         self.hal.btn_forward.when_deactivated = self._start
 
         self.state = State.IDLE_START
@@ -138,8 +137,6 @@ class Statemachine:
         Run the storyboard
         """
         logger.debug(f'play')
-        # TODO select language
-        # TODO implement chapters
         play_sound(self.hal, fs_names.SND_SELECT_LANG)
         wait_for_input(self.hal,
                        self._lang_de,
