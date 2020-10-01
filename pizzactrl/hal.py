@@ -65,7 +65,7 @@ class Motor:
         if abs(speed) > 1.:
             speed = 1. if speed > 0 else -1.
 
-        self.direction = (speed > 0)
+        self.direction = speed > 0
         self._en.value = abs(speed)
 
     def off(self):
@@ -203,7 +203,11 @@ def move_updown(hal: PizzaHAL, speed: float, distance: int):
     :param distance: positive int
                     distance to travel in tics
     """
-    _move(hal.motor_ud, hal.ud_sensor, speed, distance)
+    #_move(hal.motor_ud, hal.ud_sensor, speed, distance)
+    hal.lr_sensor.count = 0         # TODO change to ud_sensor!
+
+    while hal.lr_sensor.count < distance:
+        hal.lr_sensor.wait_for_tick()
 
 
 def move_leftright(hal: PizzaHAL, speed: float, distance: int):
@@ -226,10 +230,20 @@ def rewind(hal: PizzaHAL):
 
     :param hal: The hardware abstraction object
     """
+    hal.led_btn_back.off()
+    hal.led_btn_fwd.off()
+    hal.led_layer.off()
+    hal.led_backlight.off()
+    hal.btn_back.when_pressed = None
+    hal.btn_back.when_held = None
+    hal.btn_forward.when_pressed = None
+    hal.btn_forward.when_held = None
+
+    # TODO check tape position?
     pass
 
 
-def wait_for_input(hal: PizzaHAL, go_callback, back_callback, **kwargs):
+def wait_for_input(hal: PizzaHAL, go_callback, back_callback):
     """
     Blink leds on buttons. Wait until the user presses a button, then execute
     the appropriate callback
@@ -237,9 +251,32 @@ def wait_for_input(hal: PizzaHAL, go_callback, back_callback, **kwargs):
     :param hal: The hardware abstraction object
     :param go_callback: called when button 'go' is pressed
     :param back_callback: called whan button 'back' is pressed
-    :param kwargs: parameters passed to back_callback
     """
-    pass
+    hal.led_btn_fwd.blink(0.3, 0.3, 0.15, 0.15)
+    hal.led_btn_back.blink(0.3, 0.3, 0.15, 0.15)
+
+    hal.btn_forward.when_pressed = \
+        _wrap_wait_btn(hal, go_callback)
+
+    hal.btn_back.when_pressed = \
+        _wrap_wait_btn(hal, back_callback)
+
+    # Wait until button is pressed. is_pressed output is inverted
+    while hal.btn_back.is_pressed and hal.btn_forward.is_pressed:
+        pass
+
+    sleep(0.5)
+
+
+def _wrap_wait_btn(hal, callback):
+    def wrapper():
+        if callback is not None:
+            callback()
+        hal.btn_forward.when_pressed = None
+        hal.btn_back.when_pressed = None
+        hal.led_btn_back.off()
+        hal.led_btn_fwd.off()
+    return wrapper
 
 
 def _fade_led(led_pin: PWMOutputDevice, intensity: float, fade: float = 1.0,
@@ -301,7 +338,7 @@ def play_sound(hal: PizzaHAL, sound: Any):
     :param sound: The sound to be played
     """
     # Extract data and sampling rate from file
-    data, fs = hal.soundcache.get(sound, sf.read(sound, dtype='float32'))
+    data, fs = hal.soundcache.get(str(sound), sf.read(str(sound), dtype='float32'))
     sd.play(data, fs)
     sd.wait()  # Wait until file is done playing
 
@@ -317,24 +354,26 @@ def play_sound_insert(hal: PizzaHAL, *args):
         play_sound(hal, sound)
 
 
-def record_sound(hal: PizzaHAL, filename: str, duration: int, cache: bool = False):
+def record_sound(hal: PizzaHAL, filename: Any, duration: int,
+                 cache: bool = False):
     """
     Record sound using the microphone
 
     :param hal: The hardware abstraction object
     :param filename: The path of the file to record to
     :param duration: The time to record in seconds
+    :param cache: `True` to save recording to cache. Default is `False`
     """
     myrecording = sd.rec(int(duration * AUDIO_REC_SR),
                          samplerate=AUDIO_REC_SR,
                          channels=2)
     sd.wait()  # Wait until recording is finished
-    writewav(filename, AUDIO_REC_SR, myrecording)
+    writewav(str(filename), AUDIO_REC_SR, myrecording)
     if cache:
-        hal.soundcache[filename] = (myrecording, AUDIO_REC_SR)
+        hal.soundcache[str(filename)] = (myrecording, AUDIO_REC_SR)
 
 
-def record_video(hal: PizzaHAL, filename: str, duration: float):
+def record_video(hal: PizzaHAL, filename: Any, duration: float):
     """
     Record video using the camera
 
@@ -343,12 +382,12 @@ def record_video(hal: PizzaHAL, filename: str, duration: float):
     :param duration: The time to record in seconds
     """
     hal.camera.resolution = VIDEO_RES
-    hal.camera.start_recording(filename)
+    hal.camera.start_recording(str(filename))
     hal.camera.wait_recording(duration)
     hal.camera.stop_recording()
 
 
-def take_photo(hal: PizzaHAL, filename: str):
+def take_photo(hal: PizzaHAL, filename: Any):
     """
     Take a foto with the camera
 
@@ -356,7 +395,7 @@ def take_photo(hal: PizzaHAL, filename: str):
     :param filename: The path of the filename for the foto
     """
     hal.camera.resolution = PHOTO_RES
-    hal.camera.capture(filename)
+    hal.camera.capture(str(filename))
 
 
 def init_sounds(hal: PizzaHAL, sounds: List):
@@ -364,14 +403,15 @@ def init_sounds(hal: PizzaHAL, sounds: List):
     Load prerecorded Sounds into memory
 
     :param hal:
+    :param sounds: A list of sound files
     """
     if hal.soundcache is None:
         hal.soundcache = {}
 
     for sound in sounds:
         # Extract data and sampling rate from file
-        data, fs = sf.read(sound, dtype='float32')
-        hal.soundcache[sound] = (data, fs)
+        data, fs = sf.read(str(sound), dtype='float32')
+        hal.soundcache[str(sound)] = (data, fs)
 
 
 def init_camera(hal: PizzaHAL):

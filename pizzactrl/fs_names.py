@@ -3,6 +3,10 @@ from enum import Enum
 """
 Paths to files
 """
+# Base paths
+_STORY_SOUNDS = '/home/pi/sounds/'
+_SFX_SOUNDS = 'sounds/'
+_REC_FILES = '/home/pi/recordings/'     # TODO fill in recording target
 
 
 class FileType(Enum):
@@ -20,14 +24,18 @@ class FileHandle:
         self.name = name
         self.filetype = filetype
 
-    def get_path(self, context):
+    def __str__(self):
         """
         Get the context specific path
 
         :param context:
         :return:
         """
-        pass
+        return {
+            FileType.STORY: lambda: (_STORY_SOUNDS + self.name + '.wav'),
+            FileType.SFX: lambda: (_SFX_SOUNDS + self.name + '.wav'),
+            FileType.REC: lambda: (_REC_FILES + self.name)
+        }[self.filetype]()
 
 
 class SfxFile(FileHandle):
@@ -56,33 +64,14 @@ class StoryFile(FileHandle):
 
 REC_NAME = RecFile('name.wav')
 REC_MY_IBK = RecFile('my_ibk.wav')
-REC_PORTRAIT = 'output/portrait.jpg'
-REC_CITY_NAME = 'output/city_name.wav'
-REC_CITY_DESC = 'output/city_description.wav'
-REC_CITY_SOUND = 'output/city_sound.wav'
-REC_DRAW_CITY = 'output/city_video.mp4'
+REC_PORTRAIT = RecFile('portrait.jpg')
+REC_CITY_NAME = RecFile('city_name.wav')
+REC_CITY_DESC = RecFile('city_description.wav')
+REC_CITY_SOUND = RecFile('city_sound.wav')
+REC_DRAW_CITY = RecFile('city_video.h264')
 
-SND_WELCOME = StoryFile('welcome.wav')
-SND_INTRO = 'sound/intro.wav'
-SND_RECORD_NAME = 'sound/record_name.wav'
-SND_PHOTO = 'sound/take_photo.wav'
-SND_TOWNINTRO_1 = 'sound/townintro-1.wav'
-SND_TOWNINTRO_2 = 'sound/townintro-2.wav'
-SND_CARMEN = 'sound/carmen.wav'
-SND_KRYS = 'sound/krys.wav'
-SND_PISTOR = 'sound/pistor.wav'
-SND_GUIA = 'sound/guia.wav'
-SND_UEBUNG = 'sound/uebung.wav'
-SND_CITY_NAME = 'sound/city_name.wav'
-SND_CITY_DESC_1 = 'sound/city_description-1.wav'
-SND_CITY_DESC_2 = 'sound/city_desciption-2.wav'
-SND_CITY_SOUND = 'sound/city_sound.wav'
-SND_DRAW_CITY = 'sound/draw_city.wav'
-SND_THANK_YOU = 'sound/thankyou.wav'
-SND_GOOD_BYE = StoryFile('goodbye.wav')
+SFX_ERROR = SfxFile('error')
+SFX_POST_OK = SfxFile('post_ok')
+SFX_SHUTTER = SfxFile('shutter')
 
-SFX_POST_OK = SfxFile('post_ok.wav')
-SFX_SHUTTER = SfxFile('shutter.wav')
-SFX_CLOSE_LID_REMINDER = SfxFile('close_lid.wav')
-
-
+SND_SELECT_LANG = StoryFile(name='01de')
