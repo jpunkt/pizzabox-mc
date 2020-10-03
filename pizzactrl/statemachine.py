@@ -1,11 +1,18 @@
 import logging
+import os.path
+
+from typing import Any
+
+from time import sleep
 
 from enum import Enum, auto
 
 from pizzactrl import fs_names, sb_dummy
 from .storyboard import Activity
 
-from .hal import *
+from .hal import play_sound, take_photo, record_video, record_sound, turn_off, \
+                 PizzaHAL, init_camera, init_sounds, wait_for_input, \
+                 light_layer, backlight, advance, rewind
 
 logger = logging.getLogger(__name__)
 
@@ -52,10 +59,11 @@ def video(hal: PizzaHAL, filename: Any, duration: float = 10.0):
 
 
 class Statemachine:
-    def __init__(self):
+    def __init__(self, move: bool = False):
         self.state = State.POWER_ON
         self.hal = PizzaHAL()
         self.story = None
+        self.move = move
 
     def run(self):
         logger.debug(f'Run(state={self.state})')
@@ -69,8 +77,9 @@ class Statemachine:
         while (self.state is not State.ERROR) and \
                 (self.state is not State.SHUTDOWN):
             choice[self.state]()
+
         if self.state is State.ERROR:
-            # TODO log errors if possible
+            logger.debug('An error occurred. Trying to notify user...')
             play_sound(self.hal, fs_names.SFX_ERROR)
 
         self._shutdown()
@@ -100,9 +109,14 @@ class Statemachine:
         """
         logger.debug(f'post')
         # check scroll positions and rewind if necessary
-        rewind(self.hal)
+        turn_off(self.hal)
+        if self.move:
+            rewind(self.hal.motor_ud, self.hal.ud_sensor)
 
-        # TODO check if USB-Stick is present
+        if not os.path.exists(fs_names.USB_STICK):
+            logger.warning('USB-Stick not found.')
+            self.state = State.ERROR
+            return
 
         # play a sound if everything is alright
         play_sound(self.hal, fs_names.SFX_POST_OK)
@@ -114,14 +128,13 @@ class Statemachine:
 
     def _idle_start(self):
         """
-        Device is armed. Wait for user to press both buttons to start
+        Device is armed. Wait for user to hold blue button to start
         """
         pass
 
     def _start(self):
         """
-        Start playback when both buttons are held for 3s
-        :return:
+        Start playback when blue button is held for 3s
         """
         t = 0.
         while (self.hal.btn_forward.inactive_time < 3.0) and \
@@ -154,6 +167,8 @@ class Statemachine:
                     wait_for_input(self.hal,
                                    None,
                                    chapter.rewind)
+                elif self.move and (act.activity is Activity.ADVANCE_UP):
+                    advance(self.hal.motor_ud, self.hal.ud_sensor, 0.5)
                 else:
                     {
                         Activity.PLAY_SOUND: play_sound,
@@ -162,7 +177,7 @@ class Statemachine:
                         Activity.TAKE_PHOTO: foto,
                         Activity.LIGHT_LAYER: light_layer,
                         Activity.LIGHT_BACK: backlight,
-                        Activity.ADVANCE_UP: move_updown,
+
                     }[act.activity](self.hal, **act.values)
 
         self.state = State.IDLE_END
@@ -171,6 +186,7 @@ class Statemachine:
         """
         Initialize shutdown
         """
+        turn_off(self.hal)
         self.state = State.SHUTDOWN
         pass
 

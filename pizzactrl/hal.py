@@ -81,37 +81,45 @@ class ScrollSensor:
     def __init__(self, low_bit: int, high_bit: int, endstop: int):
         self._low = Button(low_bit, pull_up=False)
         self._high = Button(high_bit, pull_up=False)
-        self._end = Button(endstop)
-        # self._low.when_pressed = self._callback
-        self._low.when_released = self._callback
+        self._end = Button(endstop, pull_up=False)
 
-        self.direction = 0
-        self.count = 0
+        # self._low.when_released = self._callback
 
-    def _callback(self):
-        logger.debug(f'callback(), low_bit={self._low.value}, '
-                     f'high_bit={self._high.value}, count={self.count}')
-        if self._high.is_pressed is self._low.is_pressed:
-            self.direction = -1
-        else:
-            self.direction = 1
-        self.count += self.direction
+        # self.direction = 0
+        # self.count = 0
 
-    def wait_for_tick(self):
-        """
-        do nothing until flank on sensor inputs
-        """
-        _count = self.count
-        while self.count == _count:
-            pass
+    # def _callback(self):
+    #     logger.debug(f'callback(), low_bit={self._low.value}, '
+    #                  f'high_bit={self._high.value}, count={self.count}')
+    #     if self._high.is_pressed is self._low.is_pressed:
+    #         self.direction = -1
+    #     else:
+    #         self.direction = 1
+    #     self.count += self.direction
+
+    # def wait_for_tick(self):
+    #     """
+    #     do nothing until flank on sensor inputs
+    #     """
+    #     _count = self.count
+    #     while self.count == _count:
+    #         pass
 
     @property
     def eot_callback(self):
-        return self._end.when_pressed
+        return self._low.when_pressed
 
     @eot_callback.setter
     def eot_callback(self, callback):
-        self._end._when_pressed = callback
+        self._low.when_pressed = callback
+
+    @property
+    def stop_callback(self):
+        return self._end.when_pressed
+
+    @stop_callback.setter
+    def stop_callback(self, callback):
+        self._end.when_pressed = callback
 
 
 class PizzaHAL:
@@ -192,39 +200,31 @@ def _move(motor: Motor, sensor: ScrollSensor, speed: float = 1.0,
         motor.off()
 
 
-def move_updown(hal: PizzaHAL, speed: float, distance: int):
+def advance(motor: Motor, sensor: ScrollSensor, speed: float,
+            direction: bool=True):
     """
     Move the motor controlling the up-down scroll a given distance at a
     given speed.
 
-    :param hal: The hardware abstraction object
-    :param speed: float [-1.0 .. 1.0]
-                    speed factor for motor
-    :param distance: positive int
-                    distance to travel in tics
     """
-    #_move(hal.motor_ud, hal.ud_sensor, speed, distance)
-    hal.lr_sensor.count = 0         # TODO change to ud_sensor!
-
-    while hal.lr_sensor.count < distance:
-        hal.lr_sensor.wait_for_tick()
-
-
-def move_leftright(hal: PizzaHAL, speed: float, distance: int):
-    """
-    Move the motor controlling the left-right scroll a given distance at a
-    given speed.
-
-    :param hal: The hardware abstraction object
-    :param speed: float [-1.0 .. 1.0]
-                    speed factor for motor
-    :param distance: positive int
-                    distance to travel in tics
-    """
-    _move(hal.motor_lr, hal.ud_sensor, speed, distance)
+    sensor.stop_callback = motor.off
+    motor.speed = speed if direction else -speed
+    # Safety catch
+    sleep(1)
+    motor.off()
+    sensor.stop_callback = None
 
 
-def rewind(hal: PizzaHAL):
+def rewind(motor: Motor, sensor: ScrollSensor, direction: bool=True):
+    sensor.eot_callback = motor.off
+    sensor.stop_callback = None
+    motor.speed = -1. if direction else 1.
+    # Safety catch
+    sleep(2)  # TODO update to meaningful value
+    motor.off()
+
+
+def turn_off(hal: PizzaHAL):
     """
     Rewind the scrolls to starting position
 

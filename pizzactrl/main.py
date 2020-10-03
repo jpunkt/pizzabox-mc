@@ -9,9 +9,10 @@ logger = logging.getLogger('pizzactrl.main')
 
 
 @click.command()
-def main():
+@click.option('--move', is_flag=True)
+def main(move: bool=False):
     logging.basicConfig(level=logging.DEBUG, stream=sys.stdout)
-    sm = Statemachine()
+    sm = Statemachine(move)
 
     exitcode = 0
     try:

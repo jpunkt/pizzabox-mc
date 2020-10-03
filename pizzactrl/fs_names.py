@@ -13,7 +13,9 @@ Paths to files
 # Base paths
 _STORY_SOUNDS = '/home/pi/sounds/'
 _SFX_SOUNDS = 'sounds/'
-_REC_FILES = '/home/pi/recordings/'     # TODO fill in recording target
+_REC_FILES = '/home/pi/pizzafiles/'
+
+USB_STICK = _REC_FILES + '.stick'
 
 
 class FileType(Enum):
@@ -45,7 +47,6 @@ class FileHandle:
         """
         Return the file path as a string
         """
-        logger.debug(f'current working dir: {os.getcwd()}')
         return {
             FileType.STORY: lambda: (_STORY_SOUNDS + self.name + '.wav'),
             FileType.SFX: lambda: (SOUNDS_PATH + self.name
