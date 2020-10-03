@@ -1,20 +1,30 @@
+import sys
+
 import click
-from .statemachine import Statemachine
+import logging
+
+from .statemachine import Statemachine, State
+
+logger = logging.getLogger('pizzactrl.main')
 
 
-# TODO make click command
+@click.command()
 def main():
+    logging.basicConfig(level=logging.DEBUG, stream=sys.stdout)
     sm = Statemachine()
 
+    exitcode = 0
     try:
         sm.run()
     except Exception:
-        # TODO error handling, recovery/reboot
-        pass
+        logger.exception('An Error occurred while running the statemachine')
+        exitcode = 1
     finally:
+        if sm.state is State.ERROR:
+            exitcode = 2
         del sm
-        # TODO shut down raspberry
+        sys.exit(exitcode)
 
 
-if __name__=='__main__':
+if __name__ == '__main__':
     main()

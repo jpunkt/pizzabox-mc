@@ -1,4 +1,11 @@
+import os
+import logging
 from enum import Enum
+from uuid import uuid4
+
+from pizzactrl import SOUNDS_PATH
+
+logger = logging.getLogger(__name__)
 
 """
 Paths to files
@@ -19,22 +26,31 @@ class FileHandle:
     """
     Base class for handles on context-specific paths
     """
+    uuid = None
 
     def __init__(self, name: str, filetype: FileType):
         self.name = name
         self.filetype = filetype
+        # Create a uuid and fitting folder if not present
+        # All RecFiles for this session will be added to this foldere
+        if FileHandle.uuid is None:
+            FileHandle.uuid = str(uuid4())
+            try:
+                os.mkdir(_REC_FILES + FileHandle.uuid)
+                FileHandle.uuid += '/'
+            except OSError:
+                FileHandle.uuid = ''
 
     def __str__(self):
         """
-        Get the context specific path
-
-        :param context:
-        :return:
+        Return the file path as a string
         """
+        logger.debug(f'current working dir: {os.getcwd()}')
         return {
             FileType.STORY: lambda: (_STORY_SOUNDS + self.name + '.wav'),
-            FileType.SFX: lambda: (_SFX_SOUNDS + self.name + '.wav'),
-            FileType.REC: lambda: (_REC_FILES + self.name)
+            FileType.SFX: lambda: (SOUNDS_PATH + self.name
+                                   + '.wav'),
+            FileType.REC: lambda: (_REC_FILES + FileHandle.uuid + self.name)
         }[self.filetype]()
 
 

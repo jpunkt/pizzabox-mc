@@ -29,21 +29,25 @@ with open('pizzactrl/__init__.py', 'rb') as f:
         platforms='any',
 
         packages=[
-            'pizzactrl'
+            'pizzactrl',
+            'pizzactrl.sounds'
         ],
 
         install_requires=[
-            gpiozero,
-            picamera,
-            click,
-            sounddevice,
-            soundfile,
-            scipy
+            'gpiozero',
+            'picamera',
+            'click',
+            'sounddevice',
+            'soundfile',
+            'scipy'
         ],
 
         entry_points='''
-            
-        '''
+            [console_scripts]
+            pizzabox=pizzactrl.main:main
+        ''',
+
+        include_package_data=True
 
     )
 
