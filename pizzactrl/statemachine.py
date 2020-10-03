@@ -28,28 +28,25 @@ class State(Enum):
     ERROR = -1
 
 
+class Language(Enum):
+    NOT_SET = auto()
+    DE = auto()
+    EN = auto()
+
+
 def load_sounds():
     """
     Load all prerecorded Sounds from the cache
 
-    TODO implement
     :returns a list of sound file names
     """
-
-    return []
-
-
-def foto(hal: PizzaHAL, filename: str):
-    """
-    Play a sound and then make a photo
-
-    :param hal:
-    :param filename:
-    :return:
-    """
-    sleep(0.5)
-    play_sound(hal, fs_names.SFX_SHUTTER)
-    take_photo(hal, filename)
+    soundcache = [
+        fs_names.SFX_SHUTTER,
+        fs_names.SFX_ERROR,
+        fs_names.SFX_POST_OK,
+        fs_names.SND_SELECT_LANG
+    ]
+    return soundcache
 
 
 def video(hal: PizzaHAL, filename: Any, duration: float = 10.0):
@@ -58,12 +55,44 @@ def video(hal: PizzaHAL, filename: Any, duration: float = 10.0):
     record_video(hal, filename, duration)
 
 
+def noop(**kwargs):
+    """
+    Placeholder method for unimplemented activities. Does nothing.
+
+    :param kwargs:
+    :return:
+    """
+    pass
+
+
+def rewind_wrapper(hal: PizzaHAL=None, move: bool=False, chapter: Any=None):
+    """
+    Rewind the scroll for all advances in the given chapter
+    """
+    logger.info(f'rewinding chapter {chapter}')
+    if chapter is None:
+        return
+
+    for i in range(chapter.move_ud):
+        if move or (hal is not None):
+            advance(hal.motor_ud, hal.ud_sensor, 0.8, False)
+        else:
+            play_sound(hal, fs_names.StoryFile('stop'))
+    chapter.rewind()
+
+
 class Statemachine:
-    def __init__(self, move: bool = False):
+    def __init__(self,
+                 story_de: Any=None,
+                 story_en: Any=None,
+                 move: bool = False):
         self.state = State.POWER_ON
         self.hal = PizzaHAL()
-        self.story = None
+        self.story_de = story_de
+        self.story_en = story_en
+        self.lang = Language.NOT_SET
         self.move = move
+        self.test = False
 
     def run(self):
         logger.debug(f'Run(state={self.state})')
@@ -80,17 +109,24 @@ class Statemachine:
 
         if self.state is State.ERROR:
             logger.debug('An error occurred. Trying to notify user...')
-            play_sound(self.hal, fs_names.SFX_ERROR)
+            if self.lang is Language.DE:
+                play_sound(self.hal, fs_names.SFX_ERROR_DE)
+            elif self.lang is Language.EN:
+                play_sound(self.hal, fs_names.SFX_ERROR_EN)
+            else:
+                play_sound(self.hal, fs_names.SFX_ERROR)
 
         self._shutdown()
 
-    def _lang_de(self):
-        logger.debug(f'select language german')
-        self.story = sb_dummy.STORYBOARD
+    def _lang_de(self, **kwargs):
+        logger.info(f'select language german')
+        self.lang = Language.DE
+        self.story = self.story_de
 
-    def _lang_en(self):
-        logger.debug(f'select language english')
-        self.story = None
+    def _lang_en(self, **kwargs):
+        logger.info(f'select language english')
+        self.lang = Language.EN
+        self.story = self.story_en
 
     def _power_on(self):
         """
@@ -157,28 +193,45 @@ class Statemachine:
 
         sleep(0.5)
 
-        if self.story is None:
-            self.story = sb_dummy.STORYBOARD
+        try:
+            if self.story is None:
+                self.story = sb_dummy.STORYBOARD
+        finally:
+            if self.test:
+                self.story = sb_dummy.STORYBOARD
 
         for chapter in iter(self.story):
+            logger.debug(f'playing chapter {chapter}')
             while chapter.hasnext():
                 act = next(chapter)
+                logger.debug(f'next activity {act.activity}')
                 if act.activity is Activity.WAIT_FOR_INPUT:
                     wait_for_input(self.hal,
                                    None,
-                                   chapter.rewind)
-                elif self.move and (act.activity is Activity.ADVANCE_UP):
-                    advance(self.hal.motor_ud, self.hal.ud_sensor, 0.5)
+                                   rewind_wrapper,
+                                   chapter=chapter)
+                    # while self.hal.blocked:
+                    #    pass
+                elif act.activity is Activity.ADVANCE_UP:
+                    if self.move:
+                        advance(self.hal.motor_ud, self.hal.ud_sensor, 0.5)
+                    else:
+                        play_sound(self.hal, fs_names.StoryFile('stop'))  # TODO remove!
                 else:
-                    {
-                        Activity.PLAY_SOUND: play_sound,
-                        Activity.RECORD_SOUND: record_sound,
-                        Activity.RECORD_VIDEO: record_video,
-                        Activity.TAKE_PHOTO: foto,
-                        Activity.LIGHT_LAYER: light_layer,
-                        Activity.LIGHT_BACK: backlight,
+                    try:
+                        {
+                            Activity.PLAY_SOUND: play_sound,
+                            Activity.RECORD_SOUND: record_sound,
+                            Activity.RECORD_VIDEO: record_video,
+                            Activity.TAKE_PHOTO: take_photo,
+                            Activity.LIGHT_LAYER: light_layer,
+                            Activity.LIGHT_BACK: backlight,
+                            # Activity.ADVANCE_UP: noop
 
-                    }[act.activity](self.hal, **act.values)
+                        }[act.activity](self.hal, **act.values)
+                    except KeyError:
+                        logger.exception('Caught KeyError, ignoring...')
+                        pass
 
         self.state = State.IDLE_END
 
@@ -186,7 +239,6 @@ class Statemachine:
         """
         Initialize shutdown
         """
-        turn_off(self.hal)
         self.state = State.SHUTDOWN
         pass
 
@@ -195,4 +247,6 @@ class Statemachine:
         Clean up, end execution
         """
         logger.debug('shutdown')
+        turn_off(self.hal)
+
         del self.hal

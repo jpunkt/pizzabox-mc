@@ -37,6 +37,7 @@ class FileHandle:
         # All RecFiles for this session will be added to this foldere
         if FileHandle.uuid is None:
             FileHandle.uuid = str(uuid4())
+            logger.info(f'generated uuid for session: {FileHandle.uuid}')
             try:
                 os.mkdir(_REC_FILES + FileHandle.uuid)
                 FileHandle.uuid += '/'
@@ -88,7 +89,11 @@ REC_CITY_SOUND = RecFile('city_sound.wav')
 REC_DRAW_CITY = RecFile('city_video.h264')
 
 SFX_ERROR = SfxFile('error')
-SFX_POST_OK = SfxFile('post_ok')
-SFX_SHUTTER = SfxFile('shutter')
+SFX_ERROR_DE = SfxFile('error-de')
+SFX_ERROR_EN = SfxFile('error-en')
+SFX_POST_OK = SfxFile('done')
+SFX_SHUTTER = SfxFile('done')
+SFX_REC_AUDIO = SfxFile('countdown')
+SFX_STOP_REC = SfxFile('done')
 
-SND_SELECT_LANG = StoryFile(name='01de')
+SND_SELECT_LANG = StoryFile(name='01')

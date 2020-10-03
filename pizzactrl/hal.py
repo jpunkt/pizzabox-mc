@@ -1,4 +1,5 @@
 import logging
+import functools
 from time import sleep
 
 from typing import Any, List
@@ -157,6 +158,22 @@ class PizzaHAL:
         self.camera = None
         self.soundcache = {}
 
+        self.blocked = False
+
+
+def blocking(func):
+    @functools.wraps(func)
+    def _wrapper(*args, **kwargs):
+        hal = kwargs.get('hal', None)
+        if hal is not None:
+            while hal.blocked:
+                pass
+            hal.blocked = True
+        func(*args, **kwargs)
+        if hal is not None:
+            hal.blocked = False
+    return _wrapper
+
 
 def _move(motor: Motor, sensor: ScrollSensor, speed: float = 1.0,
           distance: int = 0, ramp=True):
@@ -200,6 +217,7 @@ def _move(motor: Motor, sensor: ScrollSensor, speed: float = 1.0,
         motor.off()
 
 
+@blocking
 def advance(motor: Motor, sensor: ScrollSensor, speed: float,
             direction: bool=True):
     """
@@ -208,13 +226,16 @@ def advance(motor: Motor, sensor: ScrollSensor, speed: float,
 
     """
     sensor.stop_callback = motor.off
+    sensor.eot_callback = motor.off
     motor.speed = speed if direction else -speed
     # Safety catch
     sleep(1)
     motor.off()
     sensor.stop_callback = None
+    sensor.eot_callback = None
 
 
+@blocking
 def rewind(motor: Motor, sensor: ScrollSensor, direction: bool=True):
     sensor.eot_callback = motor.off
     sensor.stop_callback = None
@@ -238,12 +259,11 @@ def turn_off(hal: PizzaHAL):
     hal.btn_back.when_held = None
     hal.btn_forward.when_pressed = None
     hal.btn_forward.when_held = None
+    hal.motor_ud.off()
+    hal.motor_lr.off()
 
-    # TODO check tape position?
-    pass
 
-
-def wait_for_input(hal: PizzaHAL, go_callback, back_callback):
+def wait_for_input(hal: PizzaHAL, go_callback, back_callback, **kwargs):
     """
     Blink leds on buttons. Wait until the user presses a button, then execute
     the appropriate callback
@@ -255,27 +275,32 @@ def wait_for_input(hal: PizzaHAL, go_callback, back_callback):
     hal.led_btn_fwd.blink(0.3, 0.3, 0.15, 0.15)
     hal.led_btn_back.blink(0.3, 0.3, 0.15, 0.15)
 
+    hal.blocked = True
+
     hal.btn_forward.when_pressed = \
-        _wrap_wait_btn(hal, go_callback)
+        _wrap_wait_btn(hal, go_callback, **kwargs)
 
     hal.btn_back.when_pressed = \
-        _wrap_wait_btn(hal, back_callback)
+        _wrap_wait_btn(hal, back_callback, **kwargs)
 
     # Wait until button is pressed. is_pressed output is inverted
-    while hal.btn_back.is_pressed and hal.btn_forward.is_pressed:
+    while hal.blocked:
         pass
+    # TODO eval
+    # sleep(0.5)
 
-    sleep(0.5)
 
-
-def _wrap_wait_btn(hal, callback):
+def _wrap_wait_btn(hal, callback, **kwargs):
+    @functools.wraps(callback)
     def wrapper():
+        hal.blocked = True
         if callback is not None:
-            callback()
+            callback(hal=hal, **kwargs)
         hal.btn_forward.when_pressed = None
         hal.btn_back.when_pressed = None
         hal.led_btn_back.off()
         hal.led_btn_fwd.off()
+        hal.blocked = False
     return wrapper
 
 
@@ -285,15 +310,17 @@ def _fade_led(led_pin: PWMOutputDevice, intensity: float, fade: float = 1.0,
     step = (intensity - brightness) / float(steps)
     wait = fade / float(steps)
 
-    for i in np.arange(brightness, intensity, step):
-        led_pin.value = i
-        sleep(wait)
+    if step != 0.:
+        for i in np.arange(brightness, intensity, step):
+            led_pin.value = i
+            sleep(wait)
 
     led_pin.value = intensity
 
 
+@blocking
 def light_layer(hal: PizzaHAL, intensity: float, fade: float = 0.0,
-                steps: int = 100):
+                steps: int = 100, **kwargs):
     """
     Turn on the light to illuminate the upper scroll
 
@@ -311,8 +338,9 @@ def light_layer(hal: PizzaHAL, intensity: float, fade: float = 0.0,
         hal.led_layer.value = intensity
 
 
+@blocking
 def backlight(hal: PizzaHAL, intensity: float, fade: float = 0.0,
-              steps: int = 100):
+              steps: int = 100, **kwargs):
     """
     Turn on the backlight
 
@@ -330,7 +358,8 @@ def backlight(hal: PizzaHAL, intensity: float, fade: float = 0.0,
         hal.led_backlight.value = intensity
 
 
-def play_sound(hal: PizzaHAL, sound: Any):
+@blocking
+def play_sound(hal: PizzaHAL, sound: Any, **kwargs):
     """
     Play a sound.
 
@@ -338,24 +367,18 @@ def play_sound(hal: PizzaHAL, sound: Any):
     :param sound: The sound to be played
     """
     # Extract data and sampling rate from file
-    data, fs = hal.soundcache.get(str(sound), sf.read(str(sound), dtype='float32'))
-    sd.play(data, fs)
-    sd.wait()  # Wait until file is done playing
+    try:
+        data, fs = hal.soundcache.get(str(sound), sf.read(str(sound), dtype='float32'))
+        sd.play(data, fs)
+        sd.wait()  # Wait until file is done playing
+    except KeyboardInterrupt:
+        logger.debug('skipped playback')
+        # sd.stop()
 
 
-def play_sound_insert(hal: PizzaHAL, *args):
-    """
-    Play multiple sounds in succession
-
-    :param hal: The hardware abstraction object
-    :param args: a list of sound files
-    """
-    for sound in args:
-        play_sound(hal, sound)
-
-
+@blocking
 def record_sound(hal: PizzaHAL, filename: Any, duration: int,
-                 cache: bool = False):
+                 cache: bool = False, **kwargs):
     """
     Record sound using the microphone
 
@@ -373,7 +396,8 @@ def record_sound(hal: PizzaHAL, filename: Any, duration: int,
         hal.soundcache[str(filename)] = (myrecording, AUDIO_REC_SR)
 
 
-def record_video(hal: PizzaHAL, filename: Any, duration: float):
+@blocking
+def record_video(hal: PizzaHAL, filename: Any, duration: float, **kwargs):
     """
     Record video using the camera
 
@@ -387,7 +411,8 @@ def record_video(hal: PizzaHAL, filename: Any, duration: float):
     hal.camera.stop_recording()
 
 
-def take_photo(hal: PizzaHAL, filename: Any):
+@blocking
+def take_photo(hal: PizzaHAL, filename: Any, **kwargs):
     """
     Take a foto with the camera
 
@@ -398,6 +423,7 @@ def take_photo(hal: PizzaHAL, filename: Any):
     hal.camera.capture(str(filename))
 
 
+@blocking
 def init_sounds(hal: PizzaHAL, sounds: List):
     """
     Load prerecorded Sounds into memory
@@ -414,6 +440,7 @@ def init_sounds(hal: PizzaHAL, sounds: List):
         hal.soundcache[str(sound)] = (data, fs)
 
 
+@blocking
 def init_camera(hal: PizzaHAL):
     if hal.camera is None:
         hal.camera = PiCamera()
