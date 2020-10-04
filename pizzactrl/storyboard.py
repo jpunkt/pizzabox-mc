@@ -7,7 +7,7 @@ class Activity(Enum):
     RECORD_SOUND = {'duration': 0.0, 'filename': '', 'cache': False}
     RECORD_VIDEO = {'duration': 0.0, 'filename': ''}
     TAKE_PHOTO = {'filename': ''}
-    ADVANCE_UP = {'speed': 0.5, 'direction': True}
+    ADVANCE_UP = {'speed': 0.3, 'direction': True}
     ADVANCE_LEFT = {'distance': 0.0, 'speed': 0.0}
     LIGHT_LAYER = {'intensity': 1.0, 'fade': 0.0, 'layer': True}
     LIGHT_BACK = {'intensity': 1.0, 'fade': 0.0}

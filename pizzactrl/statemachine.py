@@ -146,8 +146,6 @@ class Statemachine:
         logger.debug(f'post')
         # check scroll positions and rewind if necessary
         turn_off(self.hal)
-        if self.move:
-            rewind(self.hal.motor_ud, self.hal.ud_sensor)
 
         if not os.path.exists(fs_names.USB_STICK):
             logger.warning('USB-Stick not found.')
@@ -248,6 +246,10 @@ class Statemachine:
         Clean up, end execution
         """
         logger.debug('shutdown')
+
+        if self.move:
+            rewind(self.hal.motor_ud, self.hal.ud_sensor)
+
         turn_off(self.hal)
 
         del self.hal
