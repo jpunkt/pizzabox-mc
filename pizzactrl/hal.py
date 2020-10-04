@@ -242,7 +242,7 @@ def rewind(motor: Motor, sensor: ScrollSensor, direction: bool=True,
     sensor.stop_callback = None
     motor.speed = -0.3 if direction else 0.3
     # Safety catch
-    sleep(max_time)  # TODO update to meaningful value
+    sleep(max_time)
     motor.off()
 
 

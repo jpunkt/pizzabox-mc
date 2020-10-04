@@ -210,14 +210,14 @@ class Statemachine:
                                    None,
                                    rewind_wrapper,
                                    chapter=chapter,
-                                   move=self.move)  # TODO eval
+                                   move=self.move)
                     # while self.hal.blocked:
                     #    pass
                 elif act.activity is Activity.ADVANCE_UP:
                     if self.move:
                         advance(self.hal.motor_ud, self.hal.ud_sensor, 0.5)
                     else:
-                        play_sound(self.hal, fs_names.StoryFile('stop'))  # TODO remove!
+                        play_sound(self.hal, fs_names.StoryFile('stop'))
                 else:
                     try:
                         {
