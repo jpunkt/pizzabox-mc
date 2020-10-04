@@ -75,7 +75,7 @@ def rewind_wrapper(hal: PizzaHAL=None, move: bool=False, chapter: Any=None):
 
     for i in range(chapter.move_ud):
         if move and (hal is not None):
-            advance(hal.motor_ud, hal.ud_sensor, 0.8, False)
+            advance(hal.motor_ud, hal.ud_sensor, 0.3, False)
         else:
             play_sound(hal, fs_names.StoryFile('stop'))
     chapter.rewind()
