@@ -74,7 +74,7 @@ def rewind_wrapper(hal: PizzaHAL=None, move: bool=False, chapter: Any=None):
         return
 
     for i in range(chapter.move_ud):
-        if move or (hal is not None):
+        if move and (hal is not None):
             advance(hal.motor_ud, hal.ud_sensor, 0.8, False)
         else:
             play_sound(hal, fs_names.StoryFile('stop'))
@@ -209,7 +209,8 @@ class Statemachine:
                     wait_for_input(self.hal,
                                    None,
                                    rewind_wrapper,
-                                   chapter=chapter)
+                                   chapter=chapter,
+                                   move=self.move)  # TODO eval
                     # while self.hal.blocked:
                     #    pass
                 elif act.activity is Activity.ADVANCE_UP:

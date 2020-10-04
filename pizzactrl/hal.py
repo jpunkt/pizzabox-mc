@@ -112,7 +112,7 @@ class ScrollSensor:
 
     @eot_callback.setter
     def eot_callback(self, callback):
-        self._low.when_pressed = callback
+        self._high.when_pressed = callback
 
     @property
     def stop_callback(self):
@@ -229,19 +229,20 @@ def advance(motor: Motor, sensor: ScrollSensor, speed: float,
     sensor.eot_callback = motor.off
     motor.speed = speed if direction else -speed
     # Safety catch
-    sleep(1)
+    sleep(1.5)
     motor.off()
     sensor.stop_callback = None
     sensor.eot_callback = None
 
 
 @blocking
-def rewind(motor: Motor, sensor: ScrollSensor, direction: bool=True):
+def rewind(motor: Motor, sensor: ScrollSensor, direction: bool=True,
+           max_time: float=13.2):
     sensor.eot_callback = motor.off
     sensor.stop_callback = None
-    motor.speed = -1. if direction else 1.
+    motor.speed = -0.3 if direction else 0.3
     # Safety catch
-    sleep(2)  # TODO update to meaningful value
+    sleep(max_time)  # TODO update to meaningful value
     motor.off()
 
 
@@ -286,8 +287,8 @@ def wait_for_input(hal: PizzaHAL, go_callback, back_callback, **kwargs):
     # Wait until button is pressed. is_pressed output is inverted
     while hal.blocked:
         pass
-    # TODO eval
-    # sleep(0.5)
+
+    sleep(0.5)
 
 
 def _wrap_wait_btn(hal, callback, **kwargs):

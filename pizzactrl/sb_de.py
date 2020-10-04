@@ -1,5 +1,6 @@
 from pizzactrl import storyboard, fs_names
 
+
 STORYBOARD = [
     storyboard.Chapter(
         # storyboard.Do(storyboard.Activity.ADVANCE_UP),
@@ -79,10 +80,10 @@ STORYBOARD = [
         storyboard.Do(storyboard.Activity.LIGHT_BACK,
                       intensity=0.0),
         storyboard.Do(storyboard.Activity.WAIT_FOR_INPUT),
-        storyboard.Do(storyboard.Activity.PLAY_SOUND,
-                      sound=fs_names.SFX_SHUTTER),
         storyboard.Do(storyboard.Activity.TAKE_PHOTO,
-                      filename=fs_names.REC_PORTRAIT)
+                      filename=fs_names.REC_PORTRAIT),
+        storyboard.Do(storyboard.Activity.PLAY_SOUND,
+                      sound=fs_names.SFX_SHUTTER)
     ),
     storyboard.Chapter(
         storyboard.Do(storyboard.Activity.PLAY_SOUND,
