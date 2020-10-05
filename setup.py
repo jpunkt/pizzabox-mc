@@ -45,6 +45,7 @@ with open('pizzactrl/__init__.py', 'rb') as f:
         entry_points='''
             [console_scripts]
             pizzabox=pizzactrl.main:main
+            pizza-rewind=pizzactrl.main:rewind
         ''',
 
         include_package_data=True

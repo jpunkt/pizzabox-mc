@@ -76,6 +76,7 @@ def rewind_wrapper(hal: PizzaHAL=None, move: bool=False, chapter: Any=None):
     for i in range(chapter.move_ud-1):
         logger.info(f'rewinding picture {i}/{chapter.move_ud-1}')
         if move and (hal is not None):
+            logger.debug(f'advance{advance}({hal.motor_ud}, {hal.ud_sensor})')
             advance(hal.motor_ud, hal.ud_sensor, direction=False)
             sleep(1)
         else:
@@ -90,6 +91,7 @@ class Statemachine:
                  move: bool = False):
         self.state = State.POWER_ON
         self.hal = PizzaHAL()
+        self.story = None
         self.story_de = story_de
         self.story_en = story_en
         self.lang = Language.NOT_SET
@@ -196,6 +198,8 @@ class Statemachine:
         try:
             if self.story is None:
                 self.story = sb_dummy.STORYBOARD
+        except AttributeError:
+            pass
         finally:
             if self.test:
                 self.story = sb_dummy.STORYBOARD
@@ -206,15 +210,17 @@ class Statemachine:
                 act = next(chapter)
                 logger.debug(f'next activity {act.activity}')
                 if act.activity is Activity.WAIT_FOR_INPUT:
-                    wait_for_input(self.hal,
-                                   None,
-                                   rewind_wrapper,
+                    wait_for_input(hal=self.hal,
+                                   back_callback=rewind_wrapper,
                                    chapter=chapter,
                                    move=self.move)
                     # while self.hal.blocked:
                     #    pass
                 elif act.activity is Activity.ADVANCE_UP:
                     if self.move:
+                        logger.debug(
+                            f'advance{advance}({self.hal.motor_ud}, '
+                            f'{self.hal.ud_sensor})')
                         advance(self.hal.motor_ud, self.hal.ud_sensor)
                     else:
                         play_sound(self.hal, fs_names.StoryFile('stop'))

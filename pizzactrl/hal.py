@@ -73,9 +73,9 @@ class Motor:
         """
         Stop motor
         """
-        if self._en.is_active:
-            self._en.off()
-            self.direction = None
+        logger.debug(f'motor{self}.off()')
+        self._en.off()
+        self.direction = None
 
 
 class ScrollSensor:
@@ -102,6 +102,7 @@ class ScrollSensor:
 
     @eot_callback.setter
     def eot_callback(self, callback):
+        logger.debug(f'setting eot_callback={callback}')
         self._high.when_pressed = callback
 
     @property
@@ -110,6 +111,7 @@ class ScrollSensor:
 
     @stop_callback.setter
     def stop_callback(self, callback):
+        logger.debug(f'setting stop_callback={callback}')
         self._end.when_pressed = callback
 
 
@@ -168,7 +170,7 @@ def blocking(func):
     return _wrapper
 
 
-@blocking
+# @blocking
 def advance(motor: Motor, sensor: ScrollSensor, speed: float=0.3,
             direction: bool=True):
     """
@@ -176,14 +178,17 @@ def advance(motor: Motor, sensor: ScrollSensor, speed: float=0.3,
     given speed.
 
     """
+    logger.debug(f'advance(motor={motor}, sensor={sensor}, speed={speed},'
+                 f'direction={direction})')
     if sensor.is_home and not direction:
+        logger.debug('home reached, not advancing.')
         return
 
     sensor.stop_callback = motor.off
     sensor.eot_callback = motor.off
     motor.speed = speed if direction else -speed
     # Safety catch
-    sleeptime = 5 / (speed * 10)
+    sleeptime = abs(5 / (speed * 10))
     sleep(sleeptime)
     motor.off()
     sensor.stop_callback = None
@@ -221,7 +226,8 @@ def turn_off(hal: PizzaHAL):
     hal.motor_lr.off()
 
 
-def wait_for_input(hal: PizzaHAL, go_callback, back_callback, **kwargs):
+def wait_for_input(hal: PizzaHAL=None, go_callback: Any=None,
+                   back_callback: Any=None, **kwargs):
     """
     Blink leds on buttons. Wait until the user presses a button, then execute
     the appropriate callback
@@ -236,19 +242,18 @@ def wait_for_input(hal: PizzaHAL, go_callback, back_callback, **kwargs):
     hal.blocked = True
 
     hal.btn_forward.when_pressed = \
-        _wrap_wait_btn(hal, go_callback, **kwargs)
+        _wrap_wait_btn(hal=hal, callback=go_callback, **kwargs)
 
     hal.btn_back.when_pressed = \
-        _wrap_wait_btn(hal, back_callback, **kwargs)
-
-    # Wait until button is pressed. is_pressed output is inverted
-    while hal.blocked:
-        pass
+        _wrap_wait_btn(hal=hal, callback=back_callback, **kwargs)
 
     sleep(0.5)
 
+    while hal.blocked:
+        pass
 
-def _wrap_wait_btn(hal, callback, **kwargs):
+
+def _wrap_wait_btn(hal: PizzaHAL=None, callback: Any=None, **kwargs):
     @functools.wraps(callback)
     def wrapper():
         hal.blocked = True
