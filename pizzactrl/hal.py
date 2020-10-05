@@ -170,7 +170,7 @@ def blocking(func):
     return _wrapper
 
 
-# @blocking
+@blocking
 def advance(motor: Motor, sensor: ScrollSensor, speed: float=0.3,
             direction: bool=True):
     """

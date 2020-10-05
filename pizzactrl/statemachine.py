@@ -1,5 +1,6 @@
 import logging
 import os.path
+import threading
 
 from typing import Any
 
@@ -47,41 +48,6 @@ def load_sounds():
         fs_names.SND_SELECT_LANG
     ]
     return soundcache
-
-
-def video(hal: PizzaHAL, filename: Any, duration: float = 10.0):
-    sleep(0.5)
-    play_sound(hal, fs_names.SFX_SHUTTER)
-    record_video(hal, filename, duration)
-
-
-def noop(**kwargs):
-    """
-    Placeholder method for unimplemented activities. Does nothing.
-
-    :param kwargs:
-    :return:
-    """
-    pass
-
-
-def rewind_wrapper(hal: PizzaHAL=None, move: bool=False, chapter: Any=None):
-    """
-    Rewind the scroll for all advances in the given chapter
-    """
-    logger.info(f'rewinding chapter {chapter}')
-    if chapter is None:
-        return
-
-    for i in range(chapter.move_ud-1):
-        logger.info(f'rewinding picture {i}/{chapter.move_ud-1}')
-        if move and (hal is not None):
-            logger.debug(f'advance{advance}({hal.motor_ud}, {hal.ud_sensor})')
-            advance(hal.motor_ud, hal.ud_sensor, direction=False)
-            sleep(1)
-        else:
-            play_sound(hal, fs_names.StoryFile('stop'))
-    chapter.rewind()
 
 
 class Statemachine:
@@ -151,6 +117,8 @@ class Statemachine:
         # check scroll positions and rewind if necessary
         turn_off(self.hal)
 
+        rewind(self.hal.motor_ud, self.hal.ud_sensor)
+
         if not os.path.exists(fs_names.USB_STICK):
             logger.warning('USB-Stick not found.')
             self.state = State.ERROR
@@ -211,18 +179,16 @@ class Statemachine:
                 logger.debug(f'next activity {act.activity}')
                 if act.activity is Activity.WAIT_FOR_INPUT:
                     wait_for_input(hal=self.hal,
-                                   back_callback=rewind_wrapper,
-                                   chapter=chapter,
-                                   move=self.move)
-                    # while self.hal.blocked:
-                    #    pass
+                                   go_callback=chapter.mobilize,
+                                   back_callback=chapter.rewind)
                 elif act.activity is Activity.ADVANCE_UP:
-                    if self.move:
+                    if chapter.move and self.move:
                         logger.debug(
                             f'advance{advance}({self.hal.motor_ud}, '
                             f'{self.hal.ud_sensor})')
-                        advance(self.hal.motor_ud, self.hal.ud_sensor)
-                    else:
+                        advance(motor=self.hal.motor_ud,
+                                sensor=self.hal.ud_sensor)
+                    elif not self.move:
                         play_sound(self.hal, fs_names.StoryFile('stop'))
                 else:
                     try:

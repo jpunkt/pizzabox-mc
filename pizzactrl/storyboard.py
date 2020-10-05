@@ -29,6 +29,7 @@ class Chapter:
     def __init__(self, *activities):
         self.activities = activities
         self.pos = 0
+        self.move = True
         self.move_ud = 0
 
     def __iter__(self):
@@ -46,7 +47,11 @@ class Chapter:
     def hasnext(self):
         return self.pos < len(self.activities)
 
-    def rewind(self):
+    def rewind(self, **kwargs):
+        self.move = False
         self.move_ud = 0
         self.pos = 0
+
+    def mobilize(self, **kwargs):
+        self.move = True
 

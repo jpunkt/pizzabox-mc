@@ -87,6 +87,7 @@ REC_CITY_NAME = RecFile('city_name.wav')
 REC_CITY_DESC = RecFile('city_description.wav')
 REC_CITY_SOUND = RecFile('city_sound.wav')
 REC_DRAW_CITY = RecFile('city_video.h264')
+REC_CITY_PHOTO = RecFile('city_drawing.jpg')
 
 SFX_ERROR = SfxFile('error')
 SFX_ERROR_DE = SfxFile('error-de')

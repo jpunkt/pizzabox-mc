@@ -2,18 +2,18 @@ from pizzactrl import storyboard, fs_names
 
 
 STORYBOARD = [
-    storyboard.Chapter(
+    storyboard.Chapter(     # X1
         # storyboard.Do(storyboard.Activity.ADVANCE_UP),
         storyboard.Do(storyboard.Activity.LIGHT_BACK,   # Bild 1
                       intensity=1.0, fade=1.0)
     ),
-    storyboard.Chapter(
+    storyboard.Chapter(     # X2
         storyboard.Do(storyboard.Activity.PLAY_SOUND,
                       sound=fs_names.StoryFile('03de')),
         storyboard.Do(storyboard.Activity.WAIT_FOR_INPUT),
         storyboard.Do(storyboard.Activity.ADVANCE_UP)   # Bild 2
     ),
-    storyboard.Chapter(
+    storyboard.Chapter(     # X3
         storyboard.Do(storyboard.Activity.LIGHT_BACK,   # Bild 1
                       intensity=1.0, fade=1.0),
         storyboard.Do(storyboard.Activity.PLAY_SOUND,
@@ -35,7 +35,7 @@ STORYBOARD = [
         storyboard.Do(storyboard.Activity.WAIT_FOR_INPUT),
         storyboard.Do(storyboard.Activity.ADVANCE_UP),  # Bild 5
     ),
-    storyboard.Chapter(
+    storyboard.Chapter(     # X4
         storyboard.Do(storyboard.Activity.LIGHT_BACK,
                       intensity=1.0),
         storyboard.Do(storyboard.Activity.PLAY_SOUND,
@@ -56,7 +56,7 @@ STORYBOARD = [
         storyboard.Do(storyboard.Activity.PLAY_SOUND,
                       sound=fs_names.SFX_STOP_REC),
     ),
-    storyboard.Chapter(
+    storyboard.Chapter(     # X5
         storyboard.Do(storyboard.Activity.PLAY_SOUND,
                       sound=fs_names.StoryFile('13de')),
         storyboard.Do(storyboard.Activity.PLAY_SOUND,
@@ -76,28 +76,30 @@ STORYBOARD = [
                       sound=fs_names.SFX_STOP_REC),
         storyboard.Do(storyboard.Activity.ADVANCE_UP)   # Bild 7
     ),
-    storyboard.Chapter(
+    storyboard.Chapter(     # X6
         storyboard.Do(storyboard.Activity.PLAY_SOUND,
                       sound=fs_names.StoryFile('16de')),
         storyboard.Do(storyboard.Activity.LIGHT_BACK,
                       intensity=0.0),
         storyboard.Do(storyboard.Activity.WAIT_FOR_INPUT),
+        storyboard.Do(storyboard.Activity.PLAY_SOUND,
+                      sound=fs_names.SFX_REC_AUDIO),
         storyboard.Do(storyboard.Activity.TAKE_PHOTO,
                       filename=fs_names.REC_PORTRAIT),
         storyboard.Do(storyboard.Activity.PLAY_SOUND,
                       sound=fs_names.SFX_SHUTTER)
     ),
-    storyboard.Chapter(
+    storyboard.Chapter(     # X7
         storyboard.Do(storyboard.Activity.PLAY_SOUND,
                       sound=fs_names.StoryFile('17de')),
         storyboard.Do(storyboard.Activity.WAIT_FOR_INPUT),
         storyboard.Do(storyboard.Activity.ADVANCE_UP)
     ),
-    storyboard.Chapter(
+    storyboard.Chapter(     # X8
         storyboard.Do(storyboard.Activity.PLAY_SOUND,
                       sound=fs_names.StoryFile('18de')),
         storyboard.Do(storyboard.Activity.LIGHT_BACK,
-                      intensity=1.0),
+                      intensity=1.0, fade=2.0),
         storyboard.Do(storyboard.Activity.PLAY_SOUND,
                       sound=fs_names.StoryFile('19de')),
         storyboard.Do(storyboard.Activity.PLAY_SOUND,
@@ -109,7 +111,7 @@ STORYBOARD = [
         storyboard.Do(storyboard.Activity.WAIT_FOR_INPUT),
         storyboard.Do(storyboard.Activity.ADVANCE_UP)   # Bild 9
     ),
-    storyboard.Chapter(
+    storyboard.Chapter(     # X9
         storyboard.Do(storyboard.Activity.LIGHT_LAYER,
                       intensity=1., fade=0.5),
         storyboard.Do(storyboard.Activity.LIGHT_BACK,
@@ -129,7 +131,7 @@ STORYBOARD = [
         storyboard.Do(storyboard.Activity.WAIT_FOR_INPUT),
         storyboard.Do(storyboard.Activity.ADVANCE_UP)   # Bild 10
     ),
-    storyboard.Chapter(
+    storyboard.Chapter(     # X10
         storyboard.Do(storyboard.Activity.LIGHT_BACK,
                       intensity=1., fade=1.),
         storyboard.Do(storyboard.Activity.PLAY_SOUND,
@@ -145,7 +147,7 @@ STORYBOARD = [
         storyboard.Do(storyboard.Activity.WAIT_FOR_INPUT),
         storyboard.Do(storyboard.Activity.ADVANCE_UP)   # Bild 11
     ),
-    storyboard.Chapter(
+    storyboard.Chapter(     # X11
         storyboard.Do(storyboard.Activity.LIGHT_BACK,
                       intensity=1., fade=1.),
         storyboard.Do(storyboard.Activity.PLAY_SOUND,
@@ -159,7 +161,7 @@ STORYBOARD = [
         storyboard.Do(storyboard.Activity.WAIT_FOR_INPUT),
         storyboard.Do(storyboard.Activity.ADVANCE_UP)   # Bild 12
     ),
-    storyboard.Chapter(
+    storyboard.Chapter(     # X12
         storyboard.Do(storyboard.Activity.LIGHT_BACK,
                       intensity=1., fade=.5),
         storyboard.Do(storyboard.Activity.PLAY_SOUND,
@@ -167,7 +169,7 @@ STORYBOARD = [
         storyboard.Do(storyboard.Activity.WAIT_FOR_INPUT),
         storyboard.Do(storyboard.Activity.ADVANCE_UP)   # Bild 13
     ),
-    storyboard.Chapter(
+    storyboard.Chapter(     # X13
         storyboard.Do(storyboard.Activity.PLAY_SOUND,
                       sound=fs_names.StoryFile('34de')),
         storyboard.Do(storyboard.Activity.LIGHT_BACK,
@@ -182,7 +184,7 @@ STORYBOARD = [
                       sound=fs_names.SFX_STOP_REC),
         storyboard.Do(storyboard.Activity.ADVANCE_UP)   # Bild 14
     ),
-    storyboard.Chapter(
+    storyboard.Chapter(     # X14
         storyboard.Do(storyboard.Activity.LIGHT_BACK,
                       intensity=1., fade=1.),
         storyboard.Do(storyboard.Activity.PLAY_SOUND,
@@ -197,7 +199,7 @@ STORYBOARD = [
                       sound=fs_names.SFX_STOP_REC),
         storyboard.Do(storyboard.Activity.ADVANCE_UP)   # Bild 15
     ),
-    storyboard.Chapter(
+    storyboard.Chapter(     # X15
         storyboard.Do(storyboard.Activity.PLAY_SOUND,
                       sound=fs_names.StoryFile('36de')),
         storyboard.Do(storyboard.Activity.WAIT_FOR_INPUT),
@@ -212,7 +214,7 @@ STORYBOARD = [
                       intensity=0., fade=1.),
         storyboard.Do(storyboard.Activity.ADVANCE_UP)  # Bild 16
     ),
-    storyboard.Chapter(
+    storyboard.Chapter(     # X16
         storyboard.Do(storyboard.Activity.PLAY_SOUND,
                       sound=fs_names.StoryFile('37de')),
         storyboard.Do(storyboard.Activity.LIGHT_BACK,
@@ -221,7 +223,7 @@ STORYBOARD = [
                       sound=fs_names.StoryFile('38de')),
         storyboard.Do(storyboard.Activity.ADVANCE_UP)  # Bild 17
     ),
-    storyboard.Chapter(
+    storyboard.Chapter(     # X17
         storyboard.Do(storyboard.Activity.PLAY_SOUND,
                       sound=fs_names.StoryFile('39de')),
         storyboard.Do(storyboard.Activity.LIGHT_BACK,
@@ -232,12 +234,14 @@ STORYBOARD = [
         storyboard.Do(storyboard.Activity.RECORD_VIDEO,
                       filename=fs_names.REC_DRAW_CITY,
                       duration=60.0),
+        storyboard.Do(storyboard.Activity.TAKE_PHOTO,
+                      filename=fs_names.REC_CITY_PHOTO),
         storyboard.Do(storyboard.Activity.PLAY_SOUND,
                       sound=fs_names.SFX_STOP_REC),
 
         storyboard.Do(storyboard.Activity.ADVANCE_UP)  # Bild 18
     ),
-    storyboard.Chapter(
+    storyboard.Chapter(     # X18
         storyboard.Do(storyboard.Activity.LIGHT_BACK,
                       intensity=1., fade=1.),
         storyboard.Do(storyboard.Activity.PLAY_SOUND,
