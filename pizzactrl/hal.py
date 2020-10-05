@@ -89,26 +89,16 @@ class ScrollSensor:
         # self.direction = 0
         # self.count = 0
 
-    # def _callback(self):
-    #     logger.debug(f'callback(), low_bit={self._low.value}, '
-    #                  f'high_bit={self._high.value}, count={self.count}')
-    #     if self._high.is_pressed is self._low.is_pressed:
-    #         self.direction = -1
-    #     else:
-    #         self.direction = 1
-    #     self.count += self.direction
-
-    # def wait_for_tick(self):
-    #     """
-    #     do nothing until flank on sensor inputs
-    #     """
-    #     _count = self.count
-    #     while self.count == _count:
-    #         pass
+    @property
+    def is_home(self):
+        """
+        :return: `True` if the endstops are active
+        """
+        return self._high.value and self._end.value
 
     @property
     def eot_callback(self):
-        return self._low.when_pressed
+        return self._high.when_pressed
 
     @eot_callback.setter
     def eot_callback(self, callback):
@@ -166,70 +156,35 @@ def blocking(func):
     def _wrapper(*args, **kwargs):
         hal = kwargs.get('hal', None)
         if hal is not None:
+            logger.debug('blocking...')
             while hal.blocked:
                 pass
             hal.blocked = True
         func(*args, **kwargs)
         if hal is not None:
+            logger.debug('unblocking')
             hal.blocked = False
+        sleep(0.1)
     return _wrapper
 
 
-def _move(motor: Motor, sensor: ScrollSensor, speed: float = 1.0,
-          distance: int = 0, ramp=True):
-    """
-    Expecting speed to be always positive, but distance to show direction
-
-    :param motor:
-    :param sensor:
-    :param speed:
-    :param distance:
-    :param ramp:
-    :return:
-    """
-    try:
-        motor.off()
-        sensor.count = 0
-        # acceleration parameters
-        acc_dist = 0
-        increment = 0
-        speed = abs(speed)
-        # set direction
-        if distance < 0:
-            speed = -abs(speed)
-
-        # only accelerate on longer distances
-        if ramp and distance > 20:
-            # calculate speed increment per tick
-            acc_dist = int(distance * 0.1)
-            increment = speed / acc_dist
-
-        logger.debug(f'distance={distance}')
-        while abs(sensor.count) < abs(distance):
-            if abs(sensor.count) < abs(acc_dist):     # accelerate
-                motor.speed += increment
-            elif abs(sensor.count) > abs(distance - acc_dist):  # decelerate
-                motor.speed -= increment
-            else:                           # set speed and wait
-                motor.speed = speed
-            sensor.wait_for_tick()
-    finally:
-        motor.off()
-
-
 @blocking
-def advance(motor: Motor, sensor: ScrollSensor, speed: float,
+def advance(motor: Motor, sensor: ScrollSensor, speed: float=0.3,
             direction: bool=True):
     """
     Move the motor controlling the up-down scroll a given distance at a
     given speed.
 
     """
+    if sensor.is_home and not direction:
+        return
+
     sensor.stop_callback = motor.off
     sensor.eot_callback = motor.off
     motor.speed = speed if direction else -speed
     # Safety catch
-    sleep(1.5)
+    sleeptime = 5 / (speed * 10)
+    sleep(sleeptime)
     motor.off()
     sensor.stop_callback = None
     sensor.eot_callback = None
@@ -238,6 +193,8 @@ def advance(motor: Motor, sensor: ScrollSensor, speed: float,
 @blocking
 def rewind(motor: Motor, sensor: ScrollSensor, direction: bool=True,
            max_time: float=13.2):
+    if sensor.is_home:
+        return
     sensor.eot_callback = motor.off
     sensor.stop_callback = None
     motor.speed = -0.3 if direction else 0.3

@@ -8,7 +8,6 @@ class Activity(Enum):
     RECORD_VIDEO = {'duration': 0.0, 'filename': ''}
     TAKE_PHOTO = {'filename': ''}
     ADVANCE_UP = {'speed': 0.3, 'direction': True}
-    ADVANCE_LEFT = {'distance': 0.0, 'speed': 0.0}
     LIGHT_LAYER = {'intensity': 1.0, 'fade': 0.0, 'layer': True}
     LIGHT_BACK = {'intensity': 1.0, 'fade': 0.0}
 
@@ -30,7 +29,6 @@ class Chapter:
     def __init__(self, *activities):
         self.activities = activities
         self.pos = 0
-        self.move_lr = 0
         self.move_ud = 0
 
     def __iter__(self):
@@ -40,9 +38,7 @@ class Chapter:
         if self.pos >= len(self.activities):
             raise StopIteration
         act = self.activities[self.pos]
-        if act.activity is Activity.ADVANCE_LEFT:
-            self.move_lr += 1
-        elif act.activity is Activity.ADVANCE_UP:
+        if act.activity is Activity.ADVANCE_UP:
             self.move_ud += 1
         self.pos += 1
         return act
@@ -51,7 +47,6 @@ class Chapter:
         return self.pos < len(self.activities)
 
     def rewind(self):
-        self.move_lr = 0
         self.move_ud = 0
         self.pos = 0
 

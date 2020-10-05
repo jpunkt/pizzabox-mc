@@ -73,9 +73,11 @@ def rewind_wrapper(hal: PizzaHAL=None, move: bool=False, chapter: Any=None):
     if chapter is None:
         return
 
-    for i in range(chapter.move_ud):
+    for i in range(chapter.move_ud-1):
+        logger.info(f'rewinding picture {i}/{chapter.move_ud-1}')
         if move and (hal is not None):
-            advance(hal.motor_ud, hal.ud_sensor, 0.3, False)
+            advance(hal.motor_ud, hal.ud_sensor, direction=False)
+            sleep(1)
         else:
             play_sound(hal, fs_names.StoryFile('stop'))
     chapter.rewind()
@@ -213,7 +215,7 @@ class Statemachine:
                     #    pass
                 elif act.activity is Activity.ADVANCE_UP:
                     if self.move:
-                        advance(self.hal.motor_ud, self.hal.ud_sensor, 0.5)
+                        advance(self.hal.motor_ud, self.hal.ud_sensor)
                     else:
                         play_sound(self.hal, fs_names.StoryFile('stop'))
                 else:
@@ -238,17 +240,16 @@ class Statemachine:
         """
         Initialize shutdown
         """
+        if self.move:
+            rewind(self.hal.motor_ud, self.hal.ud_sensor)
+
         self.state = State.SHUTDOWN
-        pass
 
     def _shutdown(self):
         """
         Clean up, end execution
         """
         logger.debug('shutdown')
-
-        if self.move:
-            rewind(self.hal.motor_ud, self.hal.ud_sensor)
 
         turn_off(self.hal)
 

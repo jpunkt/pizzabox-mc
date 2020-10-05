@@ -4,7 +4,7 @@ import click
 import logging
 
 from .statemachine import Statemachine, State
-from . import sb_de, sb_en
+from . import hal, sb_de, sb_en
 
 logger = logging.getLogger('pizzactrl.main')
 
@@ -35,6 +35,16 @@ def main(move: bool=False, test: bool=False, debug: bool=False):
             exitcode = 2
         del sm
         sys.exit(exitcode)
+
+
+@click.command()
+@click.option('--time', help='Safety deactivation time', type=float,
+              default=13.2)
+def rewind(time: float):
+    pizza = hal.PizzaHAL()
+    hal.rewind(pizza.motor_ud, pizza.ud_sensor, max_time=time)
+    hal.turn_off(pizza)
+    del pizza
 
 
 if __name__ == '__main__':

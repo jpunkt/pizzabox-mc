@@ -13,6 +13,8 @@ STORYBOARD = [
         storyboard.Do(storyboard.Activity.ADVANCE_UP)   # Bild 2
     ),
     storyboard.Chapter(
+        storyboard.Do(storyboard.Activity.LIGHT_BACK,   # Bild 1
+                      intensity=1.0, fade=1.0),
         storyboard.Do(storyboard.Activity.PLAY_SOUND,
                       sound=fs_names.StoryFile('04en')),
         storyboard.Do(storyboard.Activity.ADVANCE_UP),  # Bild 3
