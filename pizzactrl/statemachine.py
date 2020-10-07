@@ -8,7 +8,7 @@ from time import sleep
 
 from enum import Enum, auto
 
-from pizzactrl import fs_names, sb_dummy
+from pizzactrl import fs_names, sb_dummy, sb_de_alt
 from .storyboard import Activity
 
 from .hal import play_sound, take_photo, record_video, record_sound, turn_off, \
@@ -60,6 +60,7 @@ class Statemachine:
         self.story = None
         self.story_de = story_de
         self.story_en = story_en
+        self.alt = False
         self.lang = Language.NOT_SET
         self.move = move
         self.test = False
@@ -148,7 +149,9 @@ class Statemachine:
             t = self.hal.btn_forward.inactive_time
 
         if t > 3.0:
-            self.hal.btn_forward.when_held = None
+            self.hal.btn_forward.when_deactivated = None
+            if not self.hal.btn_back.is_active:
+                self.alt = True
             self.state = State.PLAY
 
     def _play(self):
@@ -156,12 +159,15 @@ class Statemachine:
         Run the storyboard
         """
         logger.debug(f'play')
-        play_sound(self.hal, fs_names.SND_SELECT_LANG)
-        wait_for_input(self.hal,
-                       self._lang_de,
-                       self._lang_en)
+        if not self.alt:
+            play_sound(self.hal, fs_names.SND_SELECT_LANG)
+            wait_for_input(self.hal,
+                           self._lang_de,
+                           self._lang_en)
 
-        sleep(0.5)
+            sleep(0.5)
+        else:
+            self.story = sb_de_alt.STORYBOARD
 
         try:
             if self.story is None:
